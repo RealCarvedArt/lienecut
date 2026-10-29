@@ -36,14 +36,25 @@ export const SUB_STATE = {
 };
 // Alerts the user can fix (paper, ribbon, door); anything else ends the job.
 export const ALERTS = {
-  5001: 'paper jam', 5306: 'paper feed problem', 5401: 'out of paper', 5402: 'paper cassette missing',
+  5001: 'paper jam', 5306: 'paper cassette not detected — insert or reseat it fully', 5401: 'out of paper', 5402: 'paper cassette missing',
   5417: 'wrong paper loaded', 5418: 'wrong paper loaded', 5419: 'wrong paper loaded', 5420: 'wrong paper loaded',
   5506: 'cover open', 8101: 'ribbon problem', 8102: 'no ribbon', 8104: 'ribbon used up', 8106: 'wrong ribbon',
 };
 
+// Job rejection codes are terminal, not recoverable paper/ribbon alerts.
+const JOB_ERRORS = {
+  8011: 'the printer may be in an error state. Turn it off and back on, wait until it is ready, then reconnect and try again',
+};
+
 const enc = new TextEncoder();
 const dec = new TextDecoder('latin1');
-const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+const sleep = (ms, signal) => new Promise((resolve, reject) => {
+  signal?.throwIfAborted();
+  const done = () => { signal?.removeEventListener('abort', abort); resolve(); };
+  const timer = setTimeout(done, ms);
+  const abort = () => { clearTimeout(timer); signal.removeEventListener('abort', abort); reject(signal.reason); };
+  signal?.addEventListener('abort', abort, { once: true });
+});
 
 /** Frame a JSON command. */
 export function frameJson(obj) {
@@ -93,15 +104,18 @@ export function takeJson(text) {
 /** "::8102" or ["::0"] -> [8102]. Zero means no alert. */
 export function alertCodes(v) {
   const codes = [];
-  for (const m of JSON.stringify(v ?? '').matchAll(/::(\d+)/g)) {
-    const n = Number(m[1]);
-    if (n) codes.push(n);
+  for (const value of (Array.isArray(v) ? v : [v])) {
+    if (typeof value !== 'string' && typeof value !== 'number') continue;
+    for (const m of String(value).matchAll(/\d+/g)) {
+      const n = Number(m[0]);
+      if (n && !codes.includes(n)) codes.push(n);
+    }
   }
   return codes;
 }
 
 export function describeAlerts(codes) {
-  return codes.map((c) => `${c} ${ALERTS[c] ?? 'printer error'}`).join(', ');
+  return codes.map((c) => `${c} ${JOB_ERRORS[c] ?? ALERTS[c] ?? 'printer error'}`).join(', ');
 }
 
 export class PixCut {
@@ -126,7 +140,7 @@ export class PixCut {
         this.pending = rest.length > 65536 ? '' : rest;
         for (const o of objs) {
           if (o.id === id) return o;
-          if (o.method === 'event.rpt_err') throw new Error(`printer error event: ${JSON.stringify(o.params ?? o)}`);
+          if (o.method === 'event.rpt_err') throw new Error(`printer error event: ${describeAlerts(alertCodes(o.params?.['error-code'] ?? o.params?.['printer-state-alerts'] ?? o.params?.code)) || 'unspecified device fault'}`);
           this.log('event', o);
         }
       }
@@ -193,31 +207,36 @@ export class PixCut {
     ]);
     const res = r.result;
     const flat = JSON.stringify(res ?? '');
-    const err = flat.match(/"error-code"\s*:\s*(\d+)/);
+    const err = flat.match(/"error-code"\s*:\s*"?(\d+)/);
     const id = (Array.isArray(res) ? res : [res]).map((v) => (typeof v === 'object' && v ? v['job-id'] ?? v.job_id : v))
       .map(Number).find((n) => n > 0);
-    if (!id) throw new Error(err ? `printer rejected the job (error ${err[1]}${ALERTS[err[1]] ? ': ' + ALERTS[err[1]] : ''})` : `no job id in reply: ${flat}`);
+    if (!id) throw new Error(err ? `printer rejected the job (error ${err[1]}${(JOB_ERRORS[err[1]] ?? ALERTS[err[1]]) ? ': ' + (JOB_ERRORS[err[1]] ?? ALERTS[err[1]]) : ''})` : 'printer did not return a job id');
     return id;
   }
 
   /** Upload one file to job `jobId`, waiting for each chunk's OK. */
-  async upload(payload, jobId, onProgress = () => {}) {
+  async upload(payload, jobId, onProgress = () => {}, signal) {
+    signal?.throwIfAborted();
     const chunks = [...frameData(payload, jobId)];
     for (let i = 0; i < chunks.length; i++) {
+      signal?.throwIfAborted();
       await this.io.write(DATA.out, chunks[i]);
+      signal?.throwIfAborted();
       let ack = '';
       const deadline = Date.now() + 10000;
       while (!/\b(OK|ER)\b/.test(ack)) {
+        signal?.throwIfAborted();
         if (Date.now() > deadline) throw new Error(`no acknowledgement for chunk ${i + 1}/${chunks.length}`);
-        const r = await this.io.read(DATA.in, 4096, Math.max(100, deadline - Date.now()));
+        const r = await this.io.read(DATA.in, 4096, Math.min(100, Math.max(1, deadline - Date.now())));
+        signal?.throwIfAborted();
         if (r?.length) ack += dec.decode(r);
         const [objs, rest] = takeJson(ack);
-        for (const o of objs) if (o.method === 'event.rpt_err') throw new Error(`printer error during upload: ${JSON.stringify(o.params ?? o)}`);
+        for (const o of objs) if (o.method === 'event.rpt_err') throw new Error(`printer error during upload: ${describeAlerts(alertCodes(o.params?.['error-code'] ?? o.params?.['printer-state-alerts'] ?? o.params?.code)) || 'unspecified device fault'}`);
         if (objs.length) ack = rest;
       }
       if (/\bER\b/.test(ack)) throw new Error(`printer refused chunk ${i + 1}: ${ack.trim()}`);
       onProgress((i + 1) / chunks.length);
-      if (CHUNK_DELAY_MS) await sleep(CHUNK_DELAY_MS);
+      if (CHUNK_DELAY_MS) await sleep(CHUNK_DELAY_MS, signal);
     }
   }
 
@@ -226,55 +245,64 @@ export class PixCut {
    * `onStatus({phase, text, progress})` reports along the way. `signal` (AbortSignal) cancels.
    */
   async printAndCut(jpeg, plt, { onStatus = () => {}, signal } = {}) {
+    signal?.throwIfAborted();
     if (jpeg.length > MAX_JPEG_BYTES) throw new Error(`print image is ${jpeg.length} bytes; the printer takes at most 1 MiB`);
     const pre = await this.status();
+    signal?.throwIfAborted();
     if (pre.state === 60 || pre.alerts.length) throw new Error(`printer not ready: ${describeAlerts(pre.alerts) || pre.subLabel}`);
     if (pre.state === 40) throw new Error('printer is busy with another job');
 
     onStatus({ phase: 'declare', text: 'declaring job' });
+    signal?.throwIfAborted();
     const jobId = await this.createComboJob(jpeg, plt);
-    const heartbeat = setInterval(() => this.status().catch(() => {}), 5000);
     try {
-      const total = plt.length + jpeg.length;
-      onStatus({ phase: 'upload', text: `job ${jobId}: sending cut path`, progress: 0, jobId });
-      await this.upload(plt, jobId, (f) => onStatus({ phase: 'upload', text: `job ${jobId}: sending cut path`, progress: (f * plt.length) / total, jobId }));
-      onStatus({ phase: 'upload', text: `job ${jobId}: sending image`, progress: plt.length / total, jobId });
-      await this.upload(jpeg, jobId, (f) => onStatus({ phase: 'upload', text: `job ${jobId}: sending image`, progress: (plt.length + f * jpeg.length) / total, jobId }));
-    } finally {
-      clearInterval(heartbeat);
-    }
-
-    let sawCut = false;
-    let idleAfterDone = 0;
-    let missed = 0;
-    for (;;) {
-      if (signal?.aborted) {
-        await this.cancel(jobId).catch(() => {});
-        throw new Error(`job ${jobId} cancelled`);
-      }
-      await sleep(2000);
-      let st, info;
+      signal?.throwIfAborted();
+      const heartbeat = setInterval(() => this.status().catch(() => {}), 5000);
       try {
-        st = await this.status();
-        info = await this.jobInfo(jobId);
-        missed = 0;
-      } catch (e) {
-        if (++missed >= 5) throw e;
-        continue;
+        const total = plt.length + jpeg.length;
+        onStatus({ phase: 'upload', text: `job ${jobId}: sending cut path`, progress: 0, jobId });
+        await this.upload(plt, jobId, (f) => onStatus({ phase: 'upload', text: `job ${jobId}: sending cut path`, progress: (f * plt.length) / total, jobId }), signal);
+        signal?.throwIfAborted();
+        onStatus({ phase: 'upload', text: `job ${jobId}: sending image`, progress: plt.length / total, jobId });
+        await this.upload(jpeg, jobId, (f) => onStatus({ phase: 'upload', text: `job ${jobId}: sending image`, progress: (plt.length + f * jpeg.length) / total, jobId }), signal);
+      } finally {
+        clearInterval(heartbeat);
       }
-      if (st.sub >= 3028 && st.sub <= 3031) sawCut = true;
-      const js = Number(info?.['job-state']);
-      const jsub = Number(info?.['job-sub-state']);
-      if (jsub >= 3028 && jsub <= 3031 || Number(info?.['cut-contours']) > 0) sawCut = true;
-      const cut = info?.['cut-contours'] ? ` · cut ${info['cutting-progress'] ?? 0}/${info['cut-contours']}` : '';
-      const alert = st.alerts.length ? ` · ${describeAlerts(st.alerts)}` : '';
-      onStatus({ phase: 'run', text: `job ${jobId}: ${JOB_STATE[js] ?? st.label} · ${SUB_STATE[jsub] ?? st.subLabel}${cut}${alert}`, jobId, alerts: st.alerts });
 
-      if (st.state === 60 && st.alerts.some((c) => !(c in ALERTS))) throw new Error(`printer error: ${describeAlerts(st.alerts)}`);
-      if (js === 8 || js === 7) throw new Error(`job ${jobId} ${JOB_STATE[js]}`);
-      if (js === 9 || jsub === 9000 || (!info && sawCut)) {
-        if (st.state === 20 || ++idleAfterDone >= 15) return { jobId, cut: sawCut };
+      let sawCut = false;
+      let idleAfterDone = 0;
+      let missed = 0;
+      for (;;) {
+        signal?.throwIfAborted();
+        await sleep(2000, signal);
+        let st, info;
+        try {
+          st = await this.status();
+          signal?.throwIfAborted();
+          info = await this.jobInfo(jobId);
+          signal?.throwIfAborted();
+          missed = 0;
+        } catch (e) {
+          if (signal?.aborted || ++missed >= 5) throw e;
+          continue;
+        }
+        if (st.sub >= 3028 && st.sub <= 3031) sawCut = true;
+        const js = Number(info?.['job-state']);
+        const jsub = Number(info?.['job-sub-state']);
+        if (jsub >= 3028 && jsub <= 3031 || Number(info?.['cut-contours']) > 0) sawCut = true;
+        const cut = info?.['cut-contours'] ? ` · cut ${info['cutting-progress'] ?? 0}/${info['cut-contours']}` : '';
+        const alert = st.alerts.length ? ` · ${describeAlerts(st.alerts)}` : '';
+        onStatus({ phase: 'run', text: `job ${jobId}: ${JOB_STATE[js] ?? st.label} · ${SUB_STATE[jsub] ?? st.subLabel}${cut}${alert}`, jobId, alerts: st.alerts });
+
+        if (st.state === 60 && st.alerts.some((c) => !(c in ALERTS))) throw new Error(`printer error: ${describeAlerts(st.alerts)}`);
+        if (js === 8 || js === 7) throw new Error(`job ${jobId} ${JOB_STATE[js]}`);
+        if (js === 9 || jsub === 9000 || (!info && sawCut)) {
+          if (st.state === 20 || ++idleAfterDone >= 15) return { jobId, cut: sawCut };
+        }
       }
+    } catch (e) {
+      await this.cancel(jobId).catch(() => {});
+      throw e;
     }
   }
 }

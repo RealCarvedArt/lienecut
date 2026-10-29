@@ -3,152 +3,177 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<meta name="theme-color" content="#000000">
-<title>BrenCut</title>
+<meta name="theme-color" content="#202c29">
+<meta name="description" content="Your local studio for Liene PixCut S1 sticker sheets.">
+<title>LieneCut · Sticker studio</title>
 <style>
-:root { --a: 168,139,250; --d: 3,7,18; }
-* { box-sizing: border-box; }
-[hidden] { display: none !important; }
-html, body { margin: 0; height: 100%; }
-body {
-  background: rgb(var(--d)); color: rgb(var(--a));
-  font: 13px/1.45 'SF Mono', ui-monospace, 'Cascadia Code', 'Fira Code', Menlo, Monaco, Consolas, monospace;
-  display: grid; grid-template-rows: auto 1fr; overflow: hidden;
-}
-button, input, select { font: inherit; color: inherit; }
-header {
-  display: flex; align-items: center; gap: 16px; padding: 10px 16px;
-  border-bottom: 1px solid rgba(var(--a), .25);
-}
-header h1 { font-size: 14px; letter-spacing: .25em; margin: 0; font-weight: 700; }
-header .sub { opacity: .55; }
-header .spacer { flex: 1; }
-.pill { display: inline-flex; align-items: center; gap: 8px; padding: 3px 10px; border: 1px solid rgba(var(--a), .4); border-radius: 999px; }
-.pill .dot { width: 8px; height: 8px; border-radius: 50%; border: 1px solid rgb(var(--a)); }
-.pill.on .dot { background: rgb(var(--a)); }
-.pill.busy .dot { background: rgb(var(--a)); animation: blink 1s steps(2) infinite; }
-@keyframes blink { 50% { opacity: .2; } }
-
-main { display: grid; grid-template-columns: 1fr 360px; min-height: 0; }
-#stage { position: relative; display: grid; place-items: center; padding: 20px; min-height: 0; overflow: hidden; }
-#sheetWrap { position: relative; width: min(100%, (100dvh - 110px) * 4 / 7); aspect-ratio: 4 / 7; }
-#sheet { width: 100%; height: 100%; display: block; touch-action: none; box-shadow: 0 0 0 1px rgba(var(--a), .5), 0 12px 40px rgba(0,0,0,.5); }
-#stage.drag #sheet { box-shadow: 0 0 0 3px rgb(var(--a)); }
-.ruler { position: absolute; font-size: 11px; opacity: .55; white-space: nowrap; }
-.ruler.w { top: -18px; left: 0; right: 0; text-align: center; }
-.ruler.h { right: 100%; margin-right: 4px; top: 0; bottom: 0; writing-mode: vertical-rl; transform: rotate(180deg); text-align: center; }
-#empty {
-  position: absolute; inset: 0; display: grid; place-items: center; text-align: center; pointer-events: none;
-  color: rgb(var(--d)); opacity: .6;
-}
-
-aside { border-left: 1px solid rgba(var(--a), .25); overflow-y: auto; padding: 4px 0 24px; }
-section { padding: 12px 16px; border-bottom: 1px solid rgba(var(--a), .15); }
-section h2 { font-size: 11px; letter-spacing: .2em; margin: 0 0 10px; font-weight: 700; opacity: .7; display: flex; justify-content: space-between; }
-.row { display: flex; align-items: center; gap: 8px; margin: 6px 0; }
-.row label { flex: 1; }
-.muted { opacity: .55; }
-.small { font-size: 11px; }
-
-.btn {
-  background: transparent; border: 1px solid rgba(var(--a), .55); border-radius: 4px; padding: 6px 10px; cursor: pointer;
-}
-.btn:hover:not(:disabled) { background: rgba(var(--a), .12); }
-.btn:focus-visible, input:focus-visible { outline: 2px solid rgb(var(--a)); outline-offset: 1px; }
-.btn:disabled { opacity: .35; cursor: not-allowed; }
-.btn.primary { background: rgb(var(--a)); color: rgb(var(--d)); border-color: rgb(var(--a)); font-weight: 700; }
-.btn.primary:hover:not(:disabled) { background: rgba(var(--a), .85); }
-.btn.icon { padding: 2px 7px; border-color: rgba(var(--a), .3); }
-.btn.wide { width: 100%; padding: 10px; }
-.btns { display: flex; gap: 6px; flex-wrap: wrap; }
-.btns .btn { flex: 1; }
-
-input[type=number] {
-  width: 64px; background: rgba(var(--a), .06); border: 1px solid rgba(var(--a), .35); border-radius: 3px; padding: 3px 5px; text-align: right;
-}
-input[type=range] { flex: 1; accent-color: rgb(var(--a)); }
-input[type=checkbox] { accent-color: rgb(var(--a)); }
-
-#list { list-style: none; margin: 0; padding: 0; }
-#list li {
-  display: grid; grid-template-columns: 34px 1fr auto; gap: 6px; align-items: center;
-  padding: 6px; border: 1px solid transparent; border-radius: 4px; cursor: pointer;
-}
-#list li.sel { border-color: rgb(var(--a)); background: rgba(var(--a), .08); }
-#list li canvas { width: 34px; height: 34px; background: rgba(var(--a), .1); border-radius: 2px; }
-#list .name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-#list .dims { display: flex; align-items: center; gap: 4px; margin-top: 2px; }
-#list .dims input { width: 62px; }
-#list .acts { display: flex; gap: 3px; }
-
-#progress { height: 4px; background: rgba(var(--a), .15); border-radius: 2px; overflow: hidden; margin: 10px 0 4px; }
-#progress > div { height: 100%; width: 0; background: rgb(var(--a)); transition: width .2s; }
-#log { margin: 8px 0 0; max-height: 140px; overflow-y: auto; font-size: 11px; opacity: .75; white-space: pre-wrap; }
-.warn { border: 1px solid rgb(var(--a)); border-radius: 4px; padding: 8px 10px; margin-top: 8px; }
-.kbd { opacity: .55; font-size: 11px; line-height: 1.7; }
-
-@media (max-width: 760px) {
-  body { overflow: auto; grid-template-rows: auto auto; }
-  main { grid-template-columns: 1fr; }
-  #stage { height: auto; }
-  #sheetWrap { width: min(100%, 72dvh * 4 / 7); }
-  aside { border-left: 0; border-top: 1px solid rgba(var(--a), .25); }
-}
+:root { color-scheme: light; --ink:#24352f; --muted:#56645e; --green:#236348; --line:#d9dfd8; --paper:#fffefa; --workspace:#edece5; --a:35,99,72; --d:32,44,41; }
+* { box-sizing:border-box; }
+[hidden] { display:none!important; }
+body { margin:0; color:var(--ink); background:var(--workspace); font:14px/1.5 'Segoe UI',system-ui,sans-serif; }
+button,input { font:inherit; }
+button,input { color:inherit; }
+button { cursor:pointer; }
+button:disabled { cursor:not-allowed; }
+button:focus-visible,input:focus-visible,canvas:focus-visible,a:focus-visible { outline:3px solid #ba651f; outline-offset:3px; }
+a { color:var(--green); }
+.skip { position:absolute; left:16px; top:-80px; z-index:10; background:white; padding:12px; }
+.skip:focus { top:12px; }
+header { min-height:64px; display:flex; align-items:center; gap:16px; padding:10px 24px; background:#202c29; color:#fafbf7; }
+.brand { display:flex; gap:12px; align-items:center; flex:1; }
+.brandmark { width:38px; height:42px; border:1px solid #96b6a6; border-radius:6px 6px 15px 6px; display:grid; place-items:center; color:#c5dfad; font-size:24px; }
+h1 { font-size:23px; line-height:1.2; letter-spacing:-.8px; margin:0; font-weight:650; }
+.brand p { margin:3px 0 0; color:#c0cec6; font-size:12px; letter-spacing:.04em; }
+.pill { display:flex; align-items:center; gap:8px; font-size:12px; max-width:320px; }
+.dot { flex:0 0 7px; width:7px; height:7px; border-radius:50%; background:#b9c2bc; }
+.pill.on .dot { background:#bce397; }
+.pill.busy .dot { background:#ffd08c; }
+.btn { min-height:42px; padding:9px 13px; border:1px solid #bdc9bf; border-radius:7px; background:#fffefa; color:var(--ink); font-weight:600; font-size:13px; transition:background .15s,border-color .15s; }
+.btn:hover:not(:disabled) { background:#edf2e9; border-color:#788c7c; }
+.btn:disabled { background:#eff0eb; color:#657067; border-color:#d6ddd4; }
+.btn.primary { background:var(--green); color:white; border-color:var(--green); }
+.btn.primary:hover:not(:disabled) { background:#174e37; }
+.btn.primary:disabled { background:#dce5d9; border-color:#dce5d9; color:#4c6251; }
+#connectBtn { background:#d7e7bf; border-color:#d7e7bf; color:#203a28; }
+#connectBtn:hover:not(:disabled) { background:#e4f0d2; }
+main { display:grid; grid-template-columns:minmax(0,1fr) 384px; min-height:calc(100dvh - 64px); }
+.workspace { min-width:0; display:flex; flex-direction:column; }
+.workspace-heading { padding:6px 24px; display:flex; align-items:center; justify-content:space-between; gap:12px; }
+.eyebrow { font-size:10px; font-weight:700; letter-spacing:.15em; text-transform:uppercase; color:var(--muted); margin:0 0 4px; }
+.workspace-heading .eyebrow { display:none; }
+.workspace-heading h2 { font-size:16px; font-weight:600; letter-spacing:-.5px; margin:0; }
+.stock { font-size:12px; color:var(--muted); text-align:right; }
+.stock strong { color:var(--ink); font-weight:600; }
+#stage { position:relative; flex:1; min-height:460px; display:grid; place-items:center; padding:26px 32px 10px; background-image:radial-gradient(#c9cdc3 .8px,transparent .8px); background-size:16px 16px; border-top:1px solid #daddd3; border-bottom:1px solid #daddd3; }
+#stage.drag { background-color:#ddebd6; outline:3px dashed var(--green); outline-offset:-8px; }
+#sheetWrap { position:relative; width:min(100%,calc((100dvh - 180px)*4/7)); min-width:180px; aspect-ratio:4/7; }
+#sheet { display:block; width:100%; height:100%; background:white; touch-action:none; box-shadow:0 2px 5px #26352912,0 18px 42px #2635291a; }
+.ruler { position:absolute; font:10px/1.5 'Cascadia Code',monospace; color:#52614f; white-space:nowrap; }
+.ruler.w { top:-23px; left:0; right:0; text-align:center; }
+.ruler.h { right:100%; margin-right:10px; top:0; bottom:0; writing-mode:vertical-rl; transform:rotate(180deg); text-align:center; }
+#empty { position:absolute; inset:9%; display:flex; flex-direction:column; align-items:center; justify-content:center; text-align:center; border:1px dashed #cad2c6; border-radius:3px; padding:12px; pointer-events:none; color:var(--ink); }
+.empty-symbol { width:48px; height:48px; border-radius:12px; display:grid; place-items:center; background:#eef3e9; color:var(--green); font-size:27px; margin-bottom:18px; }
+#empty strong { font:500 24px/1.15 Georgia,serif; letter-spacing:-.4px; }
+#empty p { font-size:12px; color:var(--muted); margin:12px 0 18px; max-width:190px; }
+#empty .btn { pointer-events:auto; }
+#empty small { margin-top:12px; color:var(--muted); font-size:10px; }
+.workspace-footer { padding:8px 24px; display:flex; justify-content:space-between; gap:12px; color:var(--muted); font-size:11px; }
+.legend { display:flex; align-items:center; gap:7px; }
+.legend::before { content:''; width:20px; border-top:2px dashed var(--green); }
+aside { background:var(--paper); border-left:1px solid var(--line); min-width:0; }
+section { padding:23px 24px; border-bottom:1px solid var(--line); }
+.section-title { display:flex; align-items:center; gap:9px; margin-bottom:16px; }
+.section-title h2 { margin:0; font-size:15px; font-weight:650; letter-spacing:-.2px; }
+.step { color:var(--muted); font:11px/1.5 'Cascadia Code',monospace; }
+#count { margin-left:auto; border-radius:4px; background:#edf0e8; padding:2px 8px; font-size:11px; }
+.btns { display:flex; gap:8px; flex-wrap:wrap; }
+.btns .btn { flex:1; }
+#addBtn { flex:2; }
+.small { font-size:12px; }
+.muted,.hint { color:var(--muted); }
+.hint { font-size:12px; margin:10px 0 0; }
+#list { list-style:none; padding:0; margin:12px 0 0; }
+#list li { display:grid; grid-template-columns:42px minmax(0,1fr); gap:10px; padding:12px 10px; border:1px solid var(--line); border-radius:7px; margin-top:8px; }
+#list li.sel { border-color:var(--green); background:#f2f6ed; }
+#list canvas { width:42px; height:42px; background:repeating-conic-gradient(#e4e7df 0% 25%,white 0% 50%) 50%/10px 10px; border-radius:4px; }
+#list .name { display:block; width:100%; text-align:left; padding:0 0 4px; border:0; background:transparent; font-weight:600; overflow-wrap:anywhere; font-size:13px; min-height:28px; }
+#list .dims { display:flex; align-items:center; flex-wrap:wrap; gap:5px; font-size:11px; color:var(--muted); }
+#list .acts { grid-column:1/-1; display:flex; gap:6px; }
+#list .acts button { flex:1; min-height:36px; padding:5px 7px; font-size:11px; }
+.row { display:flex; align-items:center; gap:10px; margin:13px 0; }
+.row label { flex:1; font-size:13px; }
+input[type=number] { width:70px; min-height:38px; padding:6px 8px; border:1px solid #9daea0; border-radius:5px; background:white; text-align:right; font-variant-numeric:tabular-nums; }
+#list input { width:100%; min-height:36px; text-align:left; margin-top:5px; }
+#list .fields { grid-column:1/-1; display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:8px; padding-top:4px; }
+#list .fields label { min-width:0; font-size:10px; font-weight:600; color:var(--muted); }
+#list .item-meta { font-size:10px; color:var(--muted); }
+#list .acts { border-top:1px solid var(--line); padding-top:10px; }
+#list li.compact:not(.sel) .image-options, #list li.compact:not(.sel) .fields, #list li.compact:not(.sel) .acts, #list li.compact:not(.sel) .background-tools { display:none; }
+#list .image-options { grid-column:1/-1; display:grid; grid-template-columns:1fr 1fr; gap:10px; align-items:end; }
+#list .image-options label { font-size:11px; color:var(--muted); }
+#list .image-options .btn { font-size:11px; }
+#list .hole-option { grid-column:1/-1; display:flex; align-items:center; gap:8px; }
+#list .hole-option input { width:18px; min-height:18px; margin:0; }
+#list .background-tools { grid-column:1/-1; display:flex; flex-wrap:wrap; gap:8px; }
+#list .background-tools .btn { flex:1; font-size:11px; min-height:36px; padding:6px; }
+#list .background-tools label { width:100%; font-size:11px; color:var(--muted); }
+#list .background-tools .hint { width:100%; margin:0; font-size:10px; }
+#list .background-tools input[type=range] { width:100%; }
+.list-toggle { border:0; background:none; color:var(--green); padding:8px 0; font-size:12px; font-weight:600; min-height:36px; }
+.list-toggle:hover { text-decoration:underline; }
+input[type=range] { width:100%; min-height:28px; accent-color:var(--green); }
+input[type=checkbox] { width:19px; height:19px; accent-color:var(--green); margin:3px; }
+.unit { font-size:11px; color:var(--muted); }
+#cutStats { padding:10px 12px; background:#edf2e8; border-radius:5px; font-size:11px; margin-top:16px; }
+.wide { width:100%; }
+#printBtn { min-height:48px; font-size:14px; }
+.export-buttons { margin-top:10px; }
+#printHint { margin:10px 0 0; font-size:12px; color:var(--muted); }
+#progress { height:5px; background:#dce3d7; border-radius:3px; overflow:hidden; margin:16px 0 7px; }
+#progress > div { height:100%; width:0; background:var(--green); transition:width .2s; }
+#jobText { margin-top:8px; overflow-wrap:anywhere; }
+.warn { color:#754012; background:#fff1dd; padding:12px; border:1px solid #d7b48c; border-radius:5px; margin-top:12px; }
+#notice:empty { display:none; }
+#notice { margin:12px 0 0; color:#754012; overflow-wrap:anywhere; }
+.shortcuts { padding:17px 24px; color:var(--muted); font-size:11px; }
+.shortcuts p { margin:8px 0; }
+kbd { font:10px 'Cascadia Code',monospace; background:#eaf0e5; border:1px solid #ccd5c6; border-radius:3px; padding:1px 4px; }
+@media(min-width:1000px) { aside { max-height:calc(100dvh - 64px); overflow-y:auto; } .workspace { height:calc(100dvh - 64px); } }
+@media(max-width:760px) { header { padding:16px; flex-wrap:wrap; gap:12px; } .brand { flex-basis:100%; } .pill { flex:1; min-width:0; } main { grid-template-columns:1fr; } .workspace-heading { padding:22px 20px; } .stock { font-size:11px; } #stage { min-height:400px; padding:38px; } #sheetWrap { width:min(100%,270px); } .workspace-footer { padding:14px 20px; flex-wrap:wrap; } aside { border-left:0; } section { padding:22px 20px; } }
+@media(prefers-reduced-motion:reduce) { *,*::before,*::after { transition:none!important; animation:none!important; } }
 </style>
 </head>
 <body>
+<a class="skip" href="#controls">Skip to sticker controls</a>
 <header>
-  <h1>BRENCUT</h1><span class="sub">png &rarr; print &amp; cut &middot; Liene PixCut S1</span>
-  <span class="spacer"></span>
-  <span id="printerPill" class="pill"><span class="dot"></span><span id="printerText">no printer</span></span>
-  <button id="connectBtn" class="btn">connect</button>
+  <div class="brand"><span class="brandmark" aria-hidden="true">L</span><div><h1>LieneCut</h1><p>YOUR STICKER STUDIO</p></div></div>
+  <span id="printerPill" class="pill" role="status"><span class="dot" aria-hidden="true"></span><span id="printerText">Printer not connected</span></span>
+  <button id="connectBtn" class="btn" aria-describedby="connectionHelp">Connect printer</button>
 </header>
 <main>
-  <div id="stage">
-    <div id="sheetWrap">
-      <div class="ruler w">4 in &middot; 101.6 mm</div>
-      <div class="ruler h">7 in &middot; 177.8 mm</div>
-      <canvas id="sheet" width="1200" height="2100" tabindex="0" aria-label="sticker sheet"></canvas>
-      <div id="empty">drop PNGs here<br>(transparency = cut line)<br><br>or paste &middot; or &#9650; add</div>
+  <div class="workspace">
+    <div class="workspace-heading"><div><p class="eyebrow">The workspace</p><h2>Your next sticker sheet</h2></div><div class="stock"><strong>4 × 7 in</strong><br>300 DPI · PixCut S1</div></div>
+    <div id="stage">
+      <div id="sheetWrap">
+        <div class="ruler w" aria-hidden="true">101.6 mm</div><div class="ruler h" aria-hidden="true">177.8 mm</div>
+        <canvas id="sheet" width="1200" height="2100" tabindex="0" aria-label="Sticker sheet. Select a sticker in the list, then use arrow keys to move it." aria-describedby="keyboardHelp"></canvas>
+        <div id="empty"><div class="empty-symbol" aria-hidden="true">+</div><strong>A little art.<br>A whole lot of possibility.</strong><p>Drop your artwork here.<br>Transparent edges become cut lines.</p><button id="emptyAddBtn" class="btn primary">Choose images</button><small>JPEG, PNG, WebP or GIF · or paste an image</small></div>
+      </div>
     </div>
+    <div class="workspace-footer"><span class="legend">Cut outline</span><span>Artwork stays on this computer until you print.</span></div>
   </div>
-  <aside>
+  <aside id="controls" aria-label="Sticker controls">
     <section>
-      <h2>STICKERS <span id="count" class="muted"></span></h2>
-      <div class="btns">
-        <button id="addBtn" class="btn">&#9650; add png</button>
-        <button id="arrangeBtn" class="btn">&#9638; arrange</button>
-        <button id="clearBtn" class="btn">&#9675; clear</button>
-      </div>
-      <input id="file" type="file" accept="image/png,image/webp,image/gif" multiple hidden>
-      <ul id="list"></ul>
+      <div class="section-title"><span class="step">01</span><h2>Artwork</h2><span id="count">0</span></div>
+      <div class="btns"><button id="addBtn" class="btn">+ Add images</button><button id="arrangeBtn" class="btn" title="Fit every image, rotating or shrinking proportionally when needed">Arrange</button><button id="clearBtn" class="btn">Clear</button></div>
+      <input id="file" type="file" accept="image/jpeg,image/png,image/webp,image/gif,.jpg,.jpeg" multiple hidden>
+      <p id="importStatus" class="hint" role="status">Add individual stickers or a complete sheet.</p>
+      <button id="toggleArtwork" class="list-toggle" aria-controls="list" aria-expanded="false">Expand list</button>
+      <ul id="list" aria-label="Your artwork"></ul>
     </section>
     <section>
-      <h2>CUT</h2>
-      <div class="row"><label for="margin">border around art</label><input id="margin" type="number" min="0" max="10" step="0.5"> mm</div>
-      <div class="row"><input id="marginRange" type="range" min="0" max="6" step="0.5" aria-label="border"></div>
-      <div class="row"><label for="kp">knife pressure</label><input id="kp" type="number" min="1" max="100" step="1" title="1-100; 42 is the official sticker setting"></div>
-      <div class="row"><label for="holes">also cut inner holes</label><input id="holes" type="checkbox"></div>
-      <div class="row"><label for="showCut">show cut line</label><input id="showCut" type="checkbox" checked></div>
-      <div id="cutStats" class="small muted"></div>
+      <div class="section-title"><span class="step">02</span><h2>Printer settings</h2></div>
+      <div class="row"><label for="kp">Knife pressure</label><input id="kp" type="number" min="1" max="100" step="1" aria-describedby="pressureHelp"></div>
+      <p id="pressureHelp" class="hint">42 is the stock setting for Liene sticker paper.</p>
+      <div class="row"><label for="showCut">Show cut outline</label><input id="showCut" type="checkbox" checked></div>
+      <div class="btns"><button id="autoCutBtn" class="btn" hidden>Use automatic outlines</button></div>
+      <p id="cutFileInfo" class="hint" role="status" hidden></p>
+      <div id="cutStats" role="status">Add artwork to preview your cut.</div>
     </section>
     <section>
-      <h2>OUTPUT</h2>
-      <button id="printBtn" class="btn primary wide" disabled>&#9654; print &amp; cut</button>
-      <div class="btns" style="margin-top:6px">
-        <button id="cancelBtn" class="btn" hidden>&#9632; cancel job</button>
-        <button id="jpgBtn" class="btn" disabled>&darr; .jpg</button>
-        <button id="pltBtn" class="btn" disabled>&darr; .plt</button>
-      </div>
-      <div id="progress"><div></div></div>
-      <div id="jobText" class="small"></div>
+      <div class="section-title"><span class="step">03</span><h2>Make it real</h2></div>
+      <button id="printBtn" class="btn primary wide" aria-describedby="printHint" disabled>Print &amp; cut sheet</button>
+      <p id="printHint" role="status">Connect your printer to start.</p>
+      <div class="btns export-buttons"><button id="cancelBtn" class="btn" hidden>Cancel job</button><button id="saveProjectBtn" class="btn" disabled>Save project</button><button id="openProjectBtn" class="btn">Open project</button></div>
+      <input id="projectFile" type="file" accept=".lienecut" hidden>
+      <p class="hint">One .lienecut file keeps your images, layout and cut settings for later.</p>
+      <div id="progress" role="progressbar" aria-label="File upload to printer" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0" hidden><div></div></div>
+      <div id="jobText" class="small" role="status"></div>
+      <p id="connectionHelp" class="hint">Connect the PixCut S1 by USB, then choose it in your browser. Close other printer apps first.</p>
       <div id="usbNote" class="warn small" hidden></div>
-      <pre id="log"></pre>
+      <p id="notice" class="small" role="status"></p>
     </section>
-    <section>
-      <h2>KEYS</h2>
-      <div class="kbd">drag to move &middot; corner to resize<br>arrows nudge 1 mm (shift 5 mm)<br>R rotate &middot; D duplicate &middot; del remove<br>ctrl+V paste an image</div>
-    </section>
+    <section class="shortcuts" aria-labelledby="shortcutsTitle"><div class="section-title"><h2 id="shortcutsTitle">Keyboard shortcuts</h2></div><p id="keyboardHelp">Select an artwork name to edit on the sheet. Drag the round handle above the artwork to freely rotate.<br><kbd>←</kbd> <kbd>↑</kbd> <kbd>↓</kbd> <kbd>→</kbd> Move 1 mm · <kbd>Shift</kbd> Move 5 mm<br><kbd>R</kbd> Rotate · <kbd>D</kbd> Duplicate · <kbd>Del</kbd> Remove<br><kbd>Ctrl</kbd> + <kbd>V</kbd> Paste an image</p></section>
   </aside>
 </main>
 <!--APP-->

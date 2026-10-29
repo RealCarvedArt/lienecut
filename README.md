@@ -1,54 +1,46 @@
-# BrenCut
+# LieneCut
 
-**https://brencut.brennan.computer**
+A local sticker-layout and print-and-cut app for the Liene PixCut S1. Artwork stays in your browser; printing uses USB. No account or cloud service is required.
 
-Print and kiss-cut sticker sheets on a **Liene PixCut S1**, straight from the browser over USB, with no
-vendor app. No accounts, no logins, no ads, no nothing. Drop in transparent PNGs, arrange them on the 4×7 in sheet, press print & cut. The cut line
-follows each image's transparency, plus a white border with adjustable thickness.
+## Windows localhost release
 
-## Use
+1. Download the Windows localhost ZIP from [Releases](https://github.com/RealCarvedArt/lienecut/releases).
+2. Extract the whole ZIP. Install [Node.js](https://nodejs.org/) 22.18 or newer if needed.
+3. Double-click **Start Printer.cmd**. It starts the server at **http://127.0.0.1:5174** and opens Chrome or Edge when installed. Keep the server window open.
 
-1. Plug the PixCut S1 in over USB and open BrenCut in **Chrome or Edge** (any Chromium browser; WebUSB is
-   needed to reach the printer). Firefox and Safari can lay out a sheet and download the `.jpg` + `.plt`
-   but CANNOT PRINT. Sorry! This is their fault.
-2. Click **connect** (top right) and pick the printer.
-3. Add PNGs (drop, paste or pick). Either:
-   - **separate stickers**: each is trimmed to its art and sized from its DPI (300 if unset); drag,
-     resize, rotate, duplicate, or hit **arrange**; or
-   - **a whole sheet**: a 1200×2100 px (4×7 in at 300 DPI) PNG is placed exactly as drawn. Use a
-     transparent background, keep art ~5 mm from the edges and ~5 mm between stickers.
-4. Set the border and knife pressure, then **print & cut**.
+The release includes the built app. No npm install or build is needed. It listens only on your computer. Close a previous server before starting an updated release; save your project before refreshing an older tab.
 
-**Knife pressure** runs 1–100. The official app uses 42 for Liene sticker paper so that's our default.
+## Make a sheet
 
-Windows needs no driver install: the printer's control and data interfaces come up on WinUSB.
-Only one program can hold the printer at a time, so close the Liene app (or another BrenCut tab) first.
+Add JPEG, PNG, WebP or GIF artwork. Move, freely rotate, resize, unlink width/height, and arrange it on a 4 × 7 in sheet. Each image has its own white border and inner-hole cutting option. Background removal works on edge-connected solid colors; it is not photographic subject segmentation.
 
-## Develop
+**Save project** downloads one `.lienecut` file with artwork, layout, and cut settings. **Open project** restores it for editing and later printing. Projects also retain original pixels for restoring a removed background. There are no standalone JPG/PLT export or PLT import controls.
 
-Live version is at **https://brencut.brennan.computer**
+Connect the PixCut S1 over USB in Chrome or Edge. Close other printer apps/tabs, select **Connect printer**, then **Print & cut sheet**. Printer compatibility and alignment depend on the device, media and firmware. The default knife pressure is 42; check your media before a full run.
+
+## Limits and release status
+
+Images: 20 MiB and 16 megapixels each, 100 files / 100 MB per import, 64 megapixels of artwork per sheet. Projects: 100 MB, 500 items, 64 megapixels including original backgrounds. Unsupported or malformed imports are rejected without replacing an existing project.
+
+This is a preview release. Automated tests cover cancellation, print snapshots, USB cleanup, input limits, security headers and project round-trips. Physical printing/cancellation, screen-reader testing and the complete fullstack harness have not been certified. WebUSB cannot forcibly interrupt an already-running USB transfer; cancellation stops subsequent chunks and requests printer cancellation.
+
+See [local instructions](LOCAL.md), [security remediation](docs/security/remediation-2026-10-28.md), and [harness status](docs/harness/STATE.md).
+
+## Development
 
 ```sh
-npm install
-npm run dev        # http://localhost:5174, rebuilds on reload
-npm test           # protocol framing, tracer conformance, sheet tracing
-npm run build      # self-contained dist/index.html
-node tools/status.mjs   # read-only printer check from the terminal (node-usb)
+npm ci
+npm test
+npm run build
+npm start
+# Or rebuild on each request:
+npm run dev
 ```
 
-`src/protocol.js` is the printer protocol, written against a tiny `io` interface so the same code runs over
-WebUSB (`src/webusb.js`) and node-usb (`tools/node-usb.mjs`). `src/cut.js` turns the composited sheet into a
-PLT cut file. `src/app.js` is the UI. See `CLAUDE.md` for protocol notes.
+Browser checks in `tools/*check.mjs` use Chrome with mocked or disabled USB; they never print. They currently use the Windows Chrome installation path.
 
-## Credits
+## Credits and license
 
-- Cut-path tracer: [honeymaro/pixcut](https://github.com/honeymaro/pixcut) (MIT), vendored unmodified in
-  `vendor/pixcut-trace`; its fixtures in `test/fixtures` come from the vendor's own generator.
-- USB protocol: reverse-engineered by [popcornhax/PixCut-App](https://github.com/popcornhax/PixCut-App) (MIT).
+Based on [BrenCut by LTKMN](https://github.com/LTKMN/brencut). Cut-path tracer: [honeymaro/pixcut](https://github.com/honeymaro/pixcut), vendored with its MIT license. USB protocol research: [popcornhax/PixCut-App](https://github.com/popcornhax/PixCut-App), MIT.
 
-Not affiliated with Liene or Hannto. "PixCut" and "Liene" are their owners' trademarks, used only to name
-the hardware this works with. Use at your own risk.
-
-## License
-
-MIT. Please reach out with ideas and feature requests. Please don't just fork this and charge money or add ads or whatever, your mother will be very disappointed in you. This is free software.
+MIT; see [LICENSE](LICENSE). Not affiliated with Liene or Hannto.

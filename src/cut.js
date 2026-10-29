@@ -1,5 +1,7 @@
 // Sheet raster -> PLT cut file. Pure (no DOM), so it runs in the browser and under node tests.
 import { generateCutPath } from '../vendor/pixcut-trace/generate.ts';
+import { encodePlt, pltStats, parsePlt } from '../vendor/pixcut-trace/plt.ts';
+import { pathToPixels } from '../vendor/pixcut-trace/transform.ts';
 import { SHEET } from './protocol.js';
 
 export const CUT_DEFAULTS = {
@@ -11,12 +13,20 @@ export const CUT_DEFAULTS = {
   alphaThreshold: 128,
 };
 
+export function validateCutSettings(o) {
+  if (!Number.isInteger(o.knifePressure) || o.knifePressure < 1 || o.knifePressure > 100) throw new Error('Knife pressure must be an integer from 1 to 100.');
+  if (!Number.isFinite(o.marginMm) || o.marginMm < 0 || o.marginMm > 10) throw new Error('White border must be between 0 and 10 mm.');
+  if (typeof o.cutHoles !== 'boolean') throw new Error('Cut inner holes must be on or off.');
+  if (!Number.isInteger(o.alphaThreshold) || o.alphaThreshold < 1 || o.alphaThreshold > 255) throw new Error('Invalid transparency threshold.');
+}
+
 /**
  * Trace the composited sheet (1200x2100 RGBA, transparent where nothing is placed) into a cut.
  * Returns { plt, contours (sheet-pixel space, after margin), paths, stats }.
  */
 export function traceSheet(raster, opts = {}) {
   const o = { ...CUT_DEFAULTS, ...opts };
+  validateCutSettings(o);
   if (raster.width !== SHEET.w || raster.height !== SHEET.h) {
     throw new Error(`sheet raster must be ${SHEET.w}x${SHEET.h}, got ${raster.width}x${raster.height}`);
   }
@@ -29,7 +39,8 @@ export function traceSheet(raster, opts = {}) {
     dilation: Math.max(0, o.marginMm),
     knifePressure: Math.round(o.knifePressure),
     includeHoles: o.cutHoles,
-    fillMethod: 'fit', // the raster is exactly the 4x7 cut canvas, so the scale is 1 before overscan
+    fillMethod: 'fit',
+    scaleRatio: 1, // The JPEG uses this exact sheet raster; stock overscan would shift cuts away from its centre.
     ...(o.overrides ?? {}),
   });
   return { plt: r.plt, contours: r.contours, paths: r.document.paths, stats: r.stats };
@@ -50,4 +61,39 @@ export function padToRaster(raster) {
     }
   }
   return { width: rasterW, height: rasterH, data: out };
+}
+
+/** Combine already-positioned per-image paths into one printer job. */
+export function combineCuts(cuts, knifePressure) {
+  validateCutSettings({...CUT_DEFAULTS, knifePressure});
+  const paths = cuts.flatMap(c => c.paths);
+  const contours = cuts.flatMap(c => c.contours);
+  if (!paths.length) return { plt: '', paths, contours, stats: null };
+  const document = { knifePressure, paths };
+  return { plt: encodePlt(document), paths, contours, stats: pltStats(document) };
+}
+
+/** Import only the PixCut dialect, preserving coordinates and pressure exactly. */
+export function importCut(text) {
+  if (text.length > 1024 * 1024) throw new Error('Cut file must be under 1 MiB.');
+  if (!/^IN\s+VER0\.1\.0\s+KP\d+(?:\s+[UD]-?\d+,-?\d+)+\s+@\s*$/.test(text.trim())) {
+    throw new Error('Choose a PixCut .plt file (IN VER0.1.0 KP…). Other HPGL formats are not supported.');
+  }
+  const document = parsePlt(text);
+  if (document.knifePressure < 1 || document.knifePressure > 100) throw new Error('Cut file knife pressure must be 1–100.');
+  if (!document.paths.length || document.paths.some(path => path.length < 2)) throw new Error('Cut file has no usable paths.');
+  const points = [...document.paths.flat(), ...(document.park ? [document.park] : [])];
+  if (points.some(p => p.x < 0 || p.x > 4064 || p.y < 0 || p.y > 7112)) {
+    throw new Error('Cut file coordinates extend outside the 4 × 7 in sheet.');
+  }
+  return { plt: text, paths: document.paths, stats: pltStats(document), knifePressure: document.knifePressure,
+    contours: document.paths.map(path => ({ outer: pathToPixels(path, SHEET.w, SHEET.h, { scaleRatio: 1 }), inners: [], open: true })) };
+}
+
+/** Capture both printer documents before any asynchronous encoding or UI edits. */
+export function snapshotPrint(raster, cut) {
+  if (!cut?.plt) throw new Error('No valid cut path.');
+  importCut(cut.plt);
+  if (raster.width !== SHEET.w || raster.height !== SHEET.h || raster.data.length !== SHEET.w*SHEET.h*4) throw new Error('Invalid print raster.');
+  return {raster:padToRaster(raster), plt:new TextEncoder().encode(cut.plt)};
 }

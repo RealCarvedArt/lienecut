@@ -19,12 +19,13 @@ class InPipe {
     while (this.alive) {
       try {
         const r = await this.dev.transferIn(this.num, 4096);
+        if (!this.alive) return;
         if (r.status === 'stall') await this.dev.clearHalt('in', this.num);
         if (r.data?.byteLength) this.push(new Uint8Array(r.data.buffer, r.data.byteOffset, r.data.byteLength));
       } catch (e) {
         if (!this.alive) return;
         this.error = e;
-        this.push(null);
+        this.stop();
         return;
       }
     }
@@ -35,6 +36,7 @@ class InPipe {
     else this.queue.push(chunk);
   }
   read(timeoutMs) {
+    if (!this.alive) return Promise.reject(new Error('USB connection closed'));
     if (this.queue.length) return Promise.resolve(this.queue.shift());
     if (this.error) return Promise.reject(this.error);
     return new Promise((res, rej) => {
@@ -53,6 +55,9 @@ class InPipe {
   }
   stop() {
     this.alive = false;
+    this.error ??= new Error('USB connection closed');
+    this.queue.length = 0;
+    for (const waiter of this.waiters.splice(0)) waiter(null);
   }
 }
 
@@ -70,9 +75,14 @@ export async function requestPrinter() {
 
 export async function openPrinter(dev) {
   await dev.open();
-  if (!dev.configuration) await dev.selectConfiguration(1);
-  await dev.claimInterface(CTRL.iface);
-  await dev.claimInterface(DATA.iface);
+  try {
+    if (!dev.configuration) await dev.selectConfiguration(1);
+    await dev.claimInterface(CTRL.iface);
+    await dev.claimInterface(DATA.iface);
+  } catch (e) {
+    try { await dev.close(); } catch { /* preserve the setup failure */ }
+    throw e;
+  }
   const pipes = new Map([
     [CTRL.in, new InPipe(dev, CTRL.in & 0x0f)],
     [DATA.in, new InPipe(dev, DATA.in & 0x0f)],

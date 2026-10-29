@@ -27,7 +27,7 @@ try {
   }
   await page.screenshot({ path: out });
   console.log('stats:', await page.$eval('#cutStats', (e) => e.textContent));
-  console.log('log:', await page.$eval('#log', (e) => e.textContent.trim() || '(empty)'));
+  console.log('log:', await page.$eval('#notice', (e) => e.textContent.trim() || '(empty)'));
   console.log('errors:', errors.length ? errors : 'none');
 } finally {
   await browser.close();

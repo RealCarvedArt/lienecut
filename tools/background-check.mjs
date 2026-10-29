@@ -1,0 +1,50 @@
+import assert from 'node:assert/strict';
+import { readFileSync } from 'node:fs';
+import { createServer } from 'node:http';
+import puppeteer from 'puppeteer-core';
+const server=createServer((_,res)=>{res.setHeader('Content-Type','text/html');res.end(readFileSync('dist/index.html'));});
+await new Promise(r=>server.listen(0,'127.0.0.1',r));
+const browser=await puppeteer.launch({executablePath:'C:/Program Files/Google/Chrome/Application/chrome.exe',headless:true});
+try {
+ const page=await browser.newPage(),errors=[];
+ page.on('pageerror',e=>errors.push(e.message));
+ await page.evaluateOnNewDocument(()=>Object.defineProperty(navigator,'usb',{value:undefined}));
+ await page.setViewport({width:1440,height:1000});
+ await page.goto(`http://127.0.0.1:${server.address().port}`);
+ await page.evaluate(async()=>{
+   const c=document.createElement('canvas');c.width=c.height=200;const g=c.getContext('2d');
+   g.fillStyle='white';g.fillRect(0,0,200,200);g.fillStyle='#e02020';g.beginPath();g.arc(100,100,60,0,Math.PI*2);g.fill();
+   const blob=await new Promise(r=>c.toBlob(r,'image/jpeg',.95));const dt=new DataTransfer();dt.items.add(new File([blob],'subject.jpg',{type:'image/jpeg'}));
+   const el=document.querySelector('#file');el.files=dt.files;el.dispatchEvent(new Event('change'));
+ });
+ await page.waitForFunction(()=>!document.querySelector('#saveProjectBtn').disabled);
+ const width=()=>page.$eval('input[aria-label^="Width"]',el=>Number(el.value));
+ const before=await width();
+ await page.click('button[aria-label^="Remove background"]');
+ await page.waitForFunction(()=>document.querySelector('#importStatus').textContent.includes('Removing background'));
+ await page.waitForFunction(()=>!![...document.querySelectorAll('button')].find(el=>el.textContent==='Restore original')&&!document.querySelector('#saveProjectBtn').disabled);
+ assert.ok(await width()<before*.7,'cut bounds shrink to subject');
+ assert.match(await page.$eval('#cutStats',el=>el.textContent),/1 path/);
+ assert.equal(await page.$eval('#notice',el=>el.textContent),'');
+ await page.$eval('input[aria-label^="Background tolerance"]',el=>{el.value=45;el.dispatchEvent(new Event('change'));});
+ await page.waitForFunction(()=>!document.querySelector('#saveProjectBtn').disabled);
+ assert.ok(await width()<before*.7);
+ await page.screenshot({path:'dist/background-removed.png',fullPage:true});
+ await page.evaluate(()=>{URL.createObjectURL=blob=>{window.savedProject=blob;return 'blob:test';};HTMLAnchorElement.prototype.click=()=>{};});
+ await page.click('#saveProjectBtn');await page.waitForFunction(()=>window.savedProject);
+ const saved=await page.evaluate(()=>window.savedProject.text());
+ await page.reload();
+ await page.$eval('#projectFile',(el,text)=>{const dt=new DataTransfer();dt.items.add(new File([text],'background.lienecut'));el.files=dt.files;el.dispatchEvent(new Event('change'));},saved);
+ await page.waitForFunction(()=>!document.querySelector('#saveProjectBtn').disabled);
+ await page.click('#list .name');
+ assert.equal(await page.$eval('input[aria-label^="Background tolerance"]',el=>+el.value),45);
+
+ await page.evaluate(()=>[...document.querySelectorAll('button')].find(el=>el.textContent==='Restore original').click());
+ await page.waitForFunction(()=>!document.querySelector('#saveProjectBtn').disabled);
+ assert.equal(await width(),before,'restore returns original silhouette');
+ assert.equal(await page.$('input[aria-label^="Background tolerance"]'),null);
+ await page.setViewport({width:320,height:800});
+ assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth),true);
+ assert.deepEqual(errors,[]);
+ console.log('JPEG background removal, silhouette/cut refresh, adjustable tolerance, exact restore and mobile layout passed.');
+} finally {await browser.close();server.close();}
