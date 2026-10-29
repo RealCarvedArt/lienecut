@@ -30,6 +30,12 @@ jobs:
           }
       - run: npm test
       - run: npm run build
+      - name: Build Windows launcher
+        shell: pwsh
+        run: |
+          $compiler = "$env:WINDIR\Microsoft.NET\Framework64\v4.0.30319\csc.exe"
+          & $compiler /nologo /target:winexe /optimize+ /reference:System.dll /reference:System.Windows.Forms.dll /out:dist/LieneCut.exe tools\LieneCutLauncher.cs
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
       - name: Browser regressions (synthetic artwork and fake USB)
         shell: pwsh
         run: |
