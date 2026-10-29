@@ -591,7 +591,16 @@ document.addEventListener('paste', (e) => {
 });
 $('toggleArtwork').onclick = () => { compactArtwork = !compactArtwork; renderList(); };
 $('arrangeBtn').onclick = arrange;
-$('clearBtn').onclick = () => { if ((stickers.length || importedCut) && confirm('Remove all artwork and imported cuts from the sheet?')) { importedCut = null; updateCutSource(); stickers = []; selected = null; $('notice').textContent = ''; $('importStatus').textContent = 'Add individual stickers or a complete sheet.'; changed(); $('addBtn').focus(); } };
+$('clearBtn').onclick = () => {
+  if (printing || importing || backgroundBusy || projectBusy) return;
+  if ((stickers.length || importedCut) && !confirm('Remove all artwork and imported cuts from the sheet?')) return;
+  importedCut = null; updateCutSource();
+  stickers = []; selected = null; drag = null; dragPreview = null; cut = null;
+  cg.clearRect(0, 0, SHEET.w, SHEET.h);
+  $('notice').textContent = '';
+  $('importStatus').textContent = 'Add individual stickers or a complete sheet.';
+  changed(); $('addBtn').focus();
+};
 
 function updateCutSource() {
   $('autoCutBtn').hidden = !importedCut;
@@ -669,6 +678,7 @@ let connecting = false;
 
 function showError(msg) {
   $('notice').textContent = msg;
+  updateButtons();
 }
 function setPill(text, mode) {
   $('printerText').textContent = text;
@@ -790,7 +800,7 @@ function updateButtons() {
   $('cancelBtn').hidden = !printing;
   $('progress').hidden = !printing;
   $('arrangeBtn').disabled = !stickers.length || !!importing || !!printing || backgroundBusy || projectBusy;
-  $('clearBtn').disabled = (!stickers.length && !importedCut) || !!importing || !!printing || backgroundBusy || projectBusy;
+  $('clearBtn').disabled = (!stickers.length && !importedCut && !$('notice').textContent) || !!importing || !!printing || backgroundBusy || projectBusy;
   $('addBtn').disabled = $('emptyAddBtn').disabled = !!importing || !!printing || backgroundBusy || projectBusy;
   $('printHint').textContent = printing ? 'Your job is in progress. Keep this tab open.' : importing ? 'Opening artwork…' : !conn ? 'Connect your printer to print. You can still save your project.' : !hasCut ? 'Add artwork and wait for a valid cut preview.' : 'Ready to print on 4 × 7 in sticker paper.';
   $('connectBtn').textContent = connecting ? 'Connecting…' : conn ? 'Disconnect' : 'Connect printer';

@@ -229,12 +229,15 @@ export class PixCut {
         if (Date.now() > deadline) throw new Error(`no acknowledgement for chunk ${i + 1}/${chunks.length}`);
         const r = await this.io.read(DATA.in, 4096, Math.min(100, Math.max(1, deadline - Date.now())));
         signal?.throwIfAborted();
-        if (r?.length) ack += dec.decode(r);
+        if (r?.length) {
+          if (ack.length + r.length > 65536) throw new Error('Printer acknowledgement exceeded 64 KiB');
+          ack += dec.decode(r);
+        }
         const [objs, rest] = takeJson(ack);
         for (const o of objs) if (o.method === 'event.rpt_err') throw new Error(`printer error during upload: ${describeAlerts(alertCodes(o.params?.['error-code'] ?? o.params?.['printer-state-alerts'] ?? o.params?.code)) || 'unspecified device fault'}`);
         if (objs.length) ack = rest;
       }
-      if (/\bER\b/.test(ack)) throw new Error(`printer refused chunk ${i + 1}: ${ack.trim()}`);
+      if (/\bER\b/.test(ack)) throw new Error(`printer refused chunk ${i + 1}`);
       onProgress((i + 1) / chunks.length);
       if (CHUNK_DELAY_MS) await sleep(CHUNK_DELAY_MS, signal);
     }

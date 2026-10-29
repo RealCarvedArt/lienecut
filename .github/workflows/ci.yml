@@ -1,0 +1,103 @@
+name: CI
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  verify:
+    name: Windows checks
+    runs-on: windows-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
+        with:
+          node-version: '24'
+          cache: npm
+      - run: npm ci
+      - run: npm audit --audit-level=low
+      - name: Syntax
+        shell: pwsh
+        run: |
+          git ls-files '*.js' '*.mjs' | ForEach-Object {
+            node --check $_
+            if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          }
+      - run: npm test
+      - run: npm run build
+      - name: Browser regressions (synthetic artwork and fake USB)
+        shell: pwsh
+        run: |
+          foreach ($check in 'security','project','ui','background','per-image','layout','a11y') {
+            node "tools/$check-check.mjs"
+            if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          }
+      - name: Dependency inventory
+        run: npm sbom --sbom-format=cyclonedx > dist/sbom.cdx.json
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
+        with:
+          name: verified-build-${{ github.sha }}
+          path: |
+            dist/index.html
+            dist/sbom.cdx.json
+            dist/ui-review/
+          if-no-files-found: error
+          retention-days: 14
+  secrets:
+    name: Full-history secrets
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - name: Install verified Gitleaks 8.30.1
+        shell: bash
+        run: |
+          curl --fail --location --retry 3 https://github.com/gitleaks/gitleaks/releases/download/v8.30.1/gitleaks_8.30.1_linux_x64.tar.gz -o "$RUNNER_TEMP/gitleaks.tar.gz"
+          echo "551f6fc83ea457d62a0d98237cbad105af8d557003051f41f3e7ca7b3f2470eb  $RUNNER_TEMP/gitleaks.tar.gz" | sha256sum --check
+          tar -xzf "$RUNNER_TEMP/gitleaks.tar.gz" -C "$RUNNER_TEMP" gitleaks
+      - name: Full-history secret scan
+        run: '"$RUNNER_TEMP/gitleaks" git --log-opts="--all" --redact --no-banner .'
+      - name: Verify seeded secret fails the gate
+        shell: bash
+        run: |
+          mkdir "$RUNNER_TEMP/gitleaks-seed"
+          printf 'github_token = "ghp_%s"\n' '0123456789abcdefghijklmnopqrstuvwxyz' > "$RUNNER_TEMP/gitleaks-seed/synthetic.txt"
+          set +e
+          "$RUNNER_TEMP/gitleaks" dir --redact --no-banner "$RUNNER_TEMP/gitleaks-seed"
+          result=$?
+          set -e
+          test "$result" -eq 1
+  sast:
+    name: JavaScript security
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    permissions:
+      contents: read
+      security-events: write
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
+        with:
+          node-version: '24'
+      - run: node tools/quality-check.mjs --self-test
+      - uses: github/codeql-action/init@9b3254085494b55a0f7c4c2b3d2d52cc712ce370 # v4
+        with:
+          languages: javascript-typescript
+          build-mode: none
+          queries: security-extended
+      - uses: github/codeql-action/analyze@9b3254085494b55a0f7c4c2b3d2d52cc712ce370 # v4
+        with:
+          output: sarif
+          upload-database: false
+      - name: Reject security findings
+        run: node tools/quality-check.mjs sarif

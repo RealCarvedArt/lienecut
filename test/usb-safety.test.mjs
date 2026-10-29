@@ -80,3 +80,33 @@ test('closing USB rejects pending and future reads immediately',async()=>{
  await assert.rejects(conn.io.read(DATA.in,4096,10000),/connection closed/);
  assert.equal(dev.calls.at(-1),'close');
 });
+
+
+test('unsolicited USB data is bounded and overflow remains terminal',async()=>{
+ const dev=device();let reads=0;
+ dev.transferIn=async ep=>{
+  if(ep!==(CTRL.in & 0x0f))return new Promise(()=>{});
+  reads++;
+  return {status:'ok',data:new DataView(new ArrayBuffer(4096))};
+ };
+ const conn=await openPrinter(dev);
+ await new Promise(resolve=>setImmediate(resolve));
+ assert.equal(reads,17,'reader stops at first transfer beyond 64 KiB');
+ await assert.rejects(conn.io.read(CTRL.in,4096,10000),/buffer exceeded/);
+ await assert.rejects(conn.io.read(CTRL.in,4096,10000),/buffer exceeded/);
+ await conn.close();
+});
+test('oversized acknowledgement stops upload and cancels the assigned job',async()=>{
+ let reads=0,writes=0;
+ const {px,calls}=printer({write:async()=>writes++,read:async()=>{reads++;return new Uint8Array(4096).fill(65);}});
+ await assert.rejects(px.printAndCut(bytes,new Uint8Array(5000)),/acknowledgement exceeded/);
+ assert.equal(reads,17);assert.equal(writes,1);assert.equal(calls.at(-1),'cancel:35');
+});
+test('fragmented upload acknowledgement is accepted and raw refusal data is omitted',async()=>{
+ const enc=new TextEncoder();const chunks=['reply O','K'];let writes=0;
+ const px=new PixCut({write:async()=>writes++,read:async()=>enc.encode(chunks.shift())});
+ await px.upload(bytes,35);
+ assert.equal(writes,1);assert.deepEqual(chunks,[]);
+ px.io.read=async()=>enc.encode('ER private-device-payload');
+ await assert.rejects(px.upload(bytes,35),{message:'printer refused chunk 1'});
+});

@@ -11,6 +11,7 @@ class InPipe {
     this.dev = dev;
     this.num = num;
     this.queue = [];
+    this.queuedBytes = 0;
     this.waiters = [];
     this.alive = true;
     this.loop();
@@ -33,12 +34,19 @@ class InPipe {
   push(chunk) {
     const w = this.waiters.shift();
     if (w) w(chunk);
-    else this.queue.push(chunk);
+    else {
+      if (this.queuedBytes + chunk.byteLength > 65536) throw new Error('USB response buffer exceeded 64 KiB');
+      this.queue.push(chunk);
+      this.queuedBytes += chunk.byteLength;
+    }
   }
   read(timeoutMs) {
-    if (!this.alive) return Promise.reject(new Error('USB connection closed'));
-    if (this.queue.length) return Promise.resolve(this.queue.shift());
-    if (this.error) return Promise.reject(this.error);
+    if (!this.alive) return Promise.reject(this.error ?? new Error('USB connection closed'));
+    if (this.queue.length) {
+      const chunk = this.queue.shift();
+      this.queuedBytes -= chunk.byteLength;
+      return Promise.resolve(chunk);
+    }
     return new Promise((res, rej) => {
       const done = (c) => {
         clearTimeout(t);
@@ -57,6 +65,7 @@ class InPipe {
     this.alive = false;
     this.error ??= new Error('USB connection closed');
     this.queue.length = 0;
+    this.queuedBytes = 0;
     for (const waiter of this.waiters.splice(0)) waiter(null);
   }
 }

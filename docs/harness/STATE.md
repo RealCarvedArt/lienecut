@@ -1,16 +1,16 @@
 # Harness State: LieneCut
 
-Current phase: 1 Discovery & Planning — failed gate
-Last updated: 2026-10-26
+Current phase: 3 Scaffold & CI Setup — pending first GitHub run
+Last updated: 2026-10-29
 
 | # | Phase | Gate | Record | Open findings |
 |---|---|---|---|---|
-| 1 | Discovery & Planning | failed (2026-10-26) | 01-discovery-planning.md | SEC-01..07; PRIV-01..02; UX-01..10 |
-| 2 | Architecture & Design | pending | | Phase 1 prerequisite failed |
-| 3 | Scaffold & CI Setup | pending | | Not run |
-| 4 | Backend Development | pending | | Not run; no service backend planned |
-| 5 | Frontend Development | pending | | Existing app is not certified by adoption |
-| 6 | API Integration | pending | | USB integration not hardware-verified |
+| 1 | Discovery & Planning | passed (2026-10-29) | 01-discovery-planning.md; 01-verification-2026-10-29.md | Historical findings closed; OS screen-reader evidence belongs to later QA |
+| 2 | Architecture & Design | passed (2026-10-29) | 02-architecture-design.md; ../architecture/design.md | Existing local contract frozen; no service API |
+| 3 | Scaffold & CI Setup | pending | ci-gates.md | Awaiting GitHub workflow run and branch protection |
+| 4 | Backend Development | not applicable | | No backend or persisted service data in scope |
+| 5 | Frontend Development | pending | | Existing UI awaits phase-3 checks |
+| 6 | API Integration | pending | | USB integration awaits phase-3 checks |
 | 7 | Security & Quality Gates | pending | | Discovery review is not formal phase-7 passage |
 | 8 | Performance & Optimization | pending | | Not run |
 | 9 | Staging / QA | pending | | Not run |
@@ -21,9 +21,6 @@ Last updated: 2026-10-26
 None. No blanket waiver or acceptance inferred from a request to run the harness.
 
 ## Next action
-Resolve docs/backlog.md findings, rerun independent gate verification, then proceed in order. The skill requires stopping at a failed prerequisite; no later gates are marked passed.
-## UI remediation update
-The user requested a professional UI refresh after discovery. See ../ux/studio-refresh.md for targeted fixes and browser evidence. This is remediation under the existing scope, not passage into a later harness phase. Security gate remains failed.
-
-## Release preparation — 2026-10-28
-SEC-01..07 and prior privacy/UI defects have targeted remediation and automated verification; see [security remediation](../security/remediation-2026-10-28.md). Historical failed/pending phase records are retained; no fullstack sign-off is claimed. The user explicitly requested a GitHub localhost release after fixing findings. Publication is a preview release under that instruction, with remaining physical/accessibility verification stated.
+Run the pushed CI workflow, require its three checks on main, then continue the existing-app adoption gates in order.
+## Scope and limitations
+The existing local-only browser/USB design remains in scope. No remote service, personal-data store, or new authentication layer is introduced. Browser memory clearing is not forensic erasure; printer-side retention is unknown. OS screen-reader testing is a later QA activity.

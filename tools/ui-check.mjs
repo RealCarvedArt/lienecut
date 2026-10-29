@@ -17,6 +17,12 @@ try {
   await page.evaluateOnNewDocument(() => {
     // No test may request or reconnect a physical printer.
     Object.defineProperty(navigator, 'usb', { value: undefined, configurable: true });
+    const Canvas = OffscreenCanvas;
+    window.OffscreenCanvas = new Proxy(Canvas, { construct(target, args) {
+      const canvas = new target(...args);
+      window.compositeCanvas ??= canvas;
+      return canvas;
+    } });
   });
   await page.setViewport({ width: 1440, height: 1000 });
   await page.goto(`http://127.0.0.1:${server.address().port}`);
@@ -73,11 +79,35 @@ try {
   });
   await page.waitForFunction(() => document.querySelector('#notice').textContent.includes('broken.png'));
   assert.equal(await page.$eval('#list', el => el.children.length), 2, 'failed import preserves existing artwork');
+  const compositeHasPixels = () => page.evaluate(() => {
+    const canvas = window.compositeCanvas;
+    return canvas.getContext('2d').getImageData(0, 0, canvas.width, canvas.height).data.some(value => value !== 0);
+  });
+  assert.equal(await compositeHasPixels(), true, 'fixture populates the persistent composite raster');
+  page.once('dialog', dialog => dialog.dismiss());
+  await page.click('#clearBtn');
+  assert.equal(await page.$eval('#list', el => el.children.length), 2, 'cancelled Clear preserves artwork');
+  assert.equal(await compositeHasPixels(), true, 'cancelled Clear preserves raster');
   page.once('dialog', dialog => dialog.accept());
   await page.click('#clearBtn');
+  assert.equal(await compositeHasPixels(), false, 'Clear erases the offscreen artwork raster');
   assert.equal(await page.$eval('#list', el => el.children.length), 0);
   assert.equal(await page.$eval('#notice', el => el.textContent), '');
   assert.equal(await page.evaluate(() => document.activeElement.id), 'addBtn');
+  await page.evaluate(() => {
+    const dt = new DataTransfer();
+    dt.items.add(new File(['bad'], 'private-name.png', { type: 'image/png' }));
+    const input = document.querySelector('#file'); input.files = dt.files; input.dispatchEvent(new Event('change'));
+  });
+  await page.waitForFunction(() => document.querySelector('#notice').textContent.includes('private-name.png') && !document.querySelector('#clearBtn').disabled);
+  let noticeDialogs = 0;
+  const dismissUnexpected = dialog => { noticeDialogs++; dialog.dismiss(); };
+  page.on('dialog', dismissUnexpected);
+  await page.click('#clearBtn');
+  page.off('dialog', dismissUnexpected);
+  assert.equal(noticeDialogs, 0, 'clearing only a notice needs no destructive confirmation');
+  assert.equal(await page.$eval('#notice', el => el.textContent), '');
+  assert.equal(await page.$eval('#clearBtn', el => el.disabled), true);
   const permissionPage = await browser.newPage();
   permissionPage.on('pageerror', e => errors.push(e.message));
   await permissionPage.evaluateOnNewDocument(() => {
@@ -98,6 +128,6 @@ try {
     const x=luminance(a), y=luminance(b); return (Math.max(x,y)+.05)/(Math.min(x,y)+.05);
   };
   for (const [fg,bg] of [['24352f','fffefa'],['56645e','edece5'],['ffffff','236348'],['c0cec6','202c29'],['754012','fff1dd']]) assert.ok(contrast(fg,bg)>=4.5, `${fg}/${bg} contrast`);
-  writeFileSync(`${out}/results.json`, JSON.stringify({ passed: true, checks: ['empty and unsupported USB state','synthetic upload/loading','keyboard selection and stable focus','valid dimensions','aligned border inputs','JPG/PLT export filenames','responsive long content','reduced motion','failed import preserves sheet','clear removes session data','text token contrast','no browser exceptions'], renderedEvidence: evidence, limits: ['No physical USB/print/cancel test','No OS screen-reader or axe conformance audit','Permission cancellation tested with fake WebUSB; physical device progress untested'] },null,2));
+  writeFileSync(`${out}/results.json`, JSON.stringify({ passed: true, checks: ['empty and unsupported USB state','synthetic upload/loading','keyboard selection and stable focus','valid dimensions','aligned border inputs','JPG/PLT export filenames','responsive long content','reduced motion','failed import preserves sheet','clear erases offscreen raster and failed-import notices','text token contrast','no browser exceptions'], renderedEvidence: evidence, limits: ['No physical USB/print/cancel test','No OS screen-reader or axe conformance audit','Permission cancellation tested with fake WebUSB; physical device progress untested'] },null,2));
   console.log('UI checks passed; screenshots and results: dist/ui-review');
 } finally { await browser.close(); server.close(); }
