@@ -33,7 +33,7 @@ jobs:
       - name: Browser regressions (synthetic artwork and fake USB)
         shell: pwsh
         run: |
-          foreach ($check in 'security','project','ui','background','per-image','layout','a11y') {
+          foreach ($check in 'security','project','ui','background','per-image','layout','a11y','performance') {
             node "tools/$check-check.mjs"
             if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
           }
