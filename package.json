@@ -1,6 +1,6 @@
 {
   "name": "lienecut",
-  "version": "1.1.0-preview.2",
+  "version": "1.1.0-preview.3",
   "description": "Print and kiss-cut transparent PNG sticker sheets on a Liene PixCut S1, straight from the browser over WebUSB",
   "scripts": {
     "test": "node --test test/*.test.mjs",
