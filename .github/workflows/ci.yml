@@ -69,9 +69,16 @@ jobs:
         shell: bash
         run: |
           mkdir "$RUNNER_TEMP/gitleaks-seed"
-          printf 'aws_access_key_id = "AKIAIOSFODNN7EXAMPLE"\n' > "$RUNNER_TEMP/gitleaks-seed/synthetic.txt"
+          printf 'SYNTHETIC_GITLEAKS_SECRET\n' > "$RUNNER_TEMP/gitleaks-seed/synthetic.txt"
+          cat > "$RUNNER_TEMP/gitleaks-seed/gitleaks.toml" <<'EOF'
+          title = "seeded gate proof"
+          [[rules]]
+          id = "seeded-secret"
+          description = "synthetic test value"
+          regex = '''SYNTHETIC_GITLEAKS_SECRET'''
+          EOF
           set +e
-          "$RUNNER_TEMP/gitleaks" dir --redact --no-banner "$RUNNER_TEMP/gitleaks-seed"
+          "$RUNNER_TEMP/gitleaks" dir --config "$RUNNER_TEMP/gitleaks-seed/gitleaks.toml" --redact --no-banner "$RUNNER_TEMP/gitleaks-seed"
           result=$?
           set -e
           test "$result" -eq 1
