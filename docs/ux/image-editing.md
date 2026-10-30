@@ -8,7 +8,7 @@
 
 Verification: `npm test` (16 passing), `node tools/ui-check.mjs`, `node tools/layout-check.mjs`. Synthetic JPEG browser tests cover rotation, dragging from border pixels, edge clamping, all-image packing including a full-sheet PNG, and narrow layouts. Geometry tests cover mixed sizes, border widths, rotation, no overlap, no clipping, proportional scaling, unchanged input on failure, and invalid inputs. Screenshot: dist/ui-review/arranged-jpegs.png.
 
-Physical printer/calibration/cancellation testing was not performed. Existing harness security findings are not waived by these editing improvements.
+Physical printer/calibration/cancellation testing was not performed.
 
 ## Visible-shape placement update (2026-10-27)
 Placement, edge fitting, dimensions and hit testing now use opaque pixel runs captured on import. Transparent corners and holes do not intercept selection, and rotated transparent canvas corners can extend beyond the safe margin while the visible artwork and white border stay inside it. Manual overlaps remain allowed. Arrange uses the tighter visible extents but still packs rectangles around those extents rather than interlocking contours. The selection box is a visual editing aid, not a collision obstacle.

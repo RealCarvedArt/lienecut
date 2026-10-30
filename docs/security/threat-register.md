@@ -18,4 +18,4 @@ ASVS target: applicable Level 1 browser/input/configuration/supply-chain control
 
 Review evidence: [independent review](review-2026-10-26.md). Printer-side retention, physical cancellation and cut calibration were not tested.
 ## Remediation update — 2026-10-28
-The above table records discovery findings. SEC-01..07 now have targeted fixes and regression evidence in [remediation-2026-10-28.md](remediation-2026-10-28.md). This does not certify physical hardware behavior or the complete harness.
+The above table records discovery findings. SEC-01..07 now have targeted fixes and regression evidence in [remediation-2026-10-28.md](remediation-2026-10-28.md). This does not certify physical hardware behavior.
