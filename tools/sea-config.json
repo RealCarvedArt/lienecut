@@ -1,0 +1,1 @@
+{"main":"tools/standalone.cjs","mainFormat":"commonjs","output":"dist/LieneCut-runtime.exe","disableExperimentalSEAWarning":true,"assets":{"index.html":"dist/index.html"}}

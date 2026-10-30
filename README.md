@@ -4,11 +4,10 @@ A local sticker-layout and print-and-cut app for the Liene PixCut S1. Artwork st
 
 ## Windows localhost release
 
-1. Download the Windows localhost ZIP from [Releases](https://github.com/RealCarvedArt/lienecut/releases).
-2. Extract the whole ZIP. Install [Node.js](https://nodejs.org/) 22.18 or newer if needed.
-3. Double-click **LieneCut.exe**. It starts the server at **http://127.0.0.1:5174** and opens Chrome or Edge without a terminal window.
+1. Download **LieneCut.exe** from [Releases](https://github.com/RealCarvedArt/lienecut/releases).
+2. Double-click it. It starts the server at **http://127.0.0.1:5174** and opens Chrome or Edge without a terminal window.
 
-The release includes the built app. No npm install or build is needed. It listens only on your computer. Close a previous server before starting an updated release; save your project before refreshing an older tab.
+The release is a single self-contained executable: no Node.js, npm install, build, or terminal is needed. It listens only on your computer. Close a previous server before starting an updated release; save your project before refreshing an older tab.
 
 ## Make a sheet
 
@@ -22,7 +21,7 @@ Connect the PixCut S1 over USB in Chrome or Edge. Close other printer apps/tabs,
 
 Images: 20 MiB and 16 megapixels each, 100 files / 100 MB per import, 64 megapixels of artwork per sheet. Projects: 100 MB, 500 items, 64 megapixels including original backgrounds. Unsupported or malformed imports are rejected without replacing an existing project.
 
-This is a preview release. Automated tests cover cancellation, print snapshots, USB cleanup, input limits, security headers and project round-trips. Physical printing/cancellation, screen-reader testing and the complete fullstack harness have not been certified. WebUSB cannot forcibly interrupt an already-running USB transfer; cancellation stops subsequent chunks and requests printer cancellation.
+Automated tests cover cancellation, print snapshots, USB cleanup, input limits, security headers and project round-trips. Physical printing/cancellation, screen-reader testing and the complete fullstack harness have not been certified. WebUSB cannot forcibly interrupt an already-running USB transfer; cancellation stops subsequent chunks and requests printer cancellation.
 
 See [local instructions](LOCAL.md), [security remediation](docs/security/remediation-2026-10-28.md), and [harness status](docs/harness/STATE.md).
 
