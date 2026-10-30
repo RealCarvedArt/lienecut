@@ -1,6 +1,6 @@
 # LieneCut studio refresh
 
-User-directed UI remediation, 2026-10-26. This does not advance or waive the failed fullstack-harness security gate.
+User-directed UI remediation, 2026-10-26.
 
 ## Design contract
 A local, repeated-use print studio for the PixCut S1 owner: paper is the main object, followed by artwork, cut settings, then output. The existing sheet preview and three workflow groups are the local reference. Keep all hardware dimensions/calibration, source attribution, saved preference keys and exports. No external fonts/assets or new dependencies.
