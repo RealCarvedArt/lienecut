@@ -1,6 +1,6 @@
 # Run LieneCut locally
 
-Download and double-click **LieneCut.exe** from the Windows release. Chrome or Edge opens at http://127.0.0.1:5174 and the local server runs without a terminal window. No Node.js or npm dependencies are needed. Close it from Task Manager as **LieneCut-runtime.exe** when you are finished.
+Download and extract the Windows release ZIP, then double-click **LieneCut.exe**. Chrome or Edge opens at http://127.0.0.1:5174 and the local server runs without a terminal window. No Node.js or npm dependencies are needed. Close it from Task Manager as **LieneCut-runtime.exe** when you are finished.
 
 If another server uses port 5174, close that server first. For a different port, set LIENECUT_PORT before running `node serve.mjs`. The server binds only to 127.0.0.1 and serves only the built page.
 
