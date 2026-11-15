@@ -1,8 +1,8 @@
 # Run LieneCut locally
 
-Download and extract the Windows release ZIP, then double-click **LieneCut.exe**. Chrome or Edge opens at http://127.0.0.1:5174 and the local server runs without a terminal window. No Node.js or npm dependencies are needed. Close it from Task Manager as **LieneCut-runtime.exe** when you are finished.
+Install Node.js 22.18 or newer, download and extract the Windows release ZIP, then double-click **LieneCut.exe**. A dedicated Chrome or Edge app window opens at http://127.0.0.1:5219 without a terminal window. No npm install or build is needed. **Start Printer.cmd** is also included. Closing the last LieneCut app window shuts down the server and frees its port. The dedicated browser profile needs printer permission once.
 
-If another server uses port 5174, close that server first. For a different port, set LIENECUT_PORT before running `node serve.mjs`. The server binds only to 127.0.0.1 and serves only the built page.
+Launching the same version again reuses its running server. A different app or build on the port produces an error; close that app or set LIENECUT_PORT to a free port before starting LieneCut. Port 5219 avoids the Windows reservation that blocked port 5174 on the reported PC. The server binds only to 127.0.0.1 and serves only the built page.
 
 Use **Save project** before closing/reloading the browser. Later, use **Open project** to restore images, positions, sizes, rotation, borders, holes, and pressure. Save files are local downloads and may contain original image pixels retained for Restore original; delete them through your operating system when no longer needed.
 

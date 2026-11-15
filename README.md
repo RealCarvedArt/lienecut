@@ -4,10 +4,10 @@ A local sticker-layout and print-and-cut app for the Liene PixCut S1. Artwork st
 
 ## Windows localhost release
 
-1. Download **LieneCut-1.1.0-windows-localhost.zip** from [Releases](https://github.com/RealCarvedArt/lienecut/releases).
-2. Extract the ZIP, then double-click **LieneCut.exe**. It starts the server at **http://127.0.0.1:5174** and opens Chrome or Edge without a terminal window.
+1. Download **LieneCut-1.1.1-windows-localhost.zip** from [Releases](https://github.com/RealCarvedArt/lienecut/releases).
+2. Install Node.js 22.18 or newer, extract the ZIP, then double-click **LieneCut.exe**. It starts the server at **http://127.0.0.1:5219** and opens a dedicated Chrome or Edge app window without a terminal window. **Start Printer.cmd** is also included.
 
-The Windows package includes a self-contained executable: no Node.js, npm install, build, or terminal is needed. It listens only on your computer. Close a previous server before starting an updated release; save your project before refreshing an older tab.
+No npm install or build is needed for the release. Closing the last LieneCut app window shuts down its server and frees the port. Launching the same version again while it is open reuses its server. Save your project before closing or updating. The dedicated browser profile needs printer permission once. The server listens only on your computer; set LIENECUT_PORT to choose a different port.
 
 ## Make a sheet
 
